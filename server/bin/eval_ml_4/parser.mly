@@ -8,6 +8,8 @@ open Syntax
 %token LPAREN RPAREN
 %token TURNSTILE
 %token FUN REC ARROW LBRACKET RBRACKET
+%token NIL CONS
+%token MATCH WITH BAR
 
 %token <Syntax.id> ID
 %token <int> INTV
@@ -17,11 +19,10 @@ open Syntax
 %%
 
 toplevel :
-| v=VarList TURNSTILE e=Expr EVALTO i=INTV { EvalExp (v, e, IntV i) }
-| v=VarList TURNSTILE e=Expr EVALTO TRUE { EvalExp (v, e, BoolV true) }
-| v=VarList TURNSTILE e=Expr EVALTO FALSE { EvalExp (v, e, BoolV false) }
-| v=VarList TURNSTILE e=Expr EVALTO p=ProcVExpr { EvalExp (v, e, p) }
-| v=VarList TURNSTILE e=Expr EVALTO r=RecProcVExpr { EvalExp (v, e, r) }
+| vl=VarList TURNSTILE e=Expr EVALTO v=SingleValue { EvalExp (vl, e, v) }
+| vl=VarList TURNSTILE e=Expr EVALTO c=ConsVExpr { EvalExp (vl, e, c) }
+
+// Environment
 
 VarList :
 | hd=SingleVar COMMA tl=VarList { hd::tl } 
@@ -35,14 +36,49 @@ SingleVar :
 | x=ID EQ p=ProcVExpr { (x, p) }
 | x=ID EQ r=RecProcVExpr { (x, r) }
 
+// Value
+
+// これだと行ける
+ConsVExpr :
+| v1=SingleValue CONS v2=ConsVExpr { ConsV (v1, v2) }
+| v=SingleValue { v }
+| NIL { NilV }
+
+SingleValue :
+| i=INTV { IntV i }
+| TRUE { BoolV true }
+| FALSE { BoolV false }
+| v=ProcVExpr { v }
+| v=RecProcVExpr { v }
+
+// これだと行けない。なぜ？
+// ConsVExpr :
+// | v1=SingleValue CONS v2=ConsVExpr { ConsV (v1, v2) }
+// | v=SingleValue { v }
+
+// SingleValue :
+// | NIL { NilV }
+// | i=INTV { IntV i }
+// | TRUE { BoolV true }
+// | FALSE { BoolV false }
+// | v=ProcVExpr { v }
+// | v=RecProcVExpr { v }
+
 ProcVExpr :
-| LPAREN v=VarList RPAREN LBRACKET FUN x=ID ARROW e=Expr RBRACKET { ProcV (x, e, ref v) }
+| LPAREN v=VarList RPAREN LBRACKET FUN x=ID ARROW e=Expr RBRACKET { ProcV (x, e, v) }
 
 RecProcVExpr :
-| LPAREN v=VarList RPAREN LBRACKET REC x=ID EQ FUN y=ID ARROW e=Expr RBRACKET { RecProcV (x, y, e, ref v) }
+| LPAREN v=VarList RPAREN LBRACKET REC x=ID EQ FUN y=ID ARROW e=Expr RBRACKET { RecProcV (x, y, e, v) }
+
+// Expression
 
 Expr :
 | e=FunExpr { e }
+| e=ConsExpr { e }
+
+ConsExpr :
+| e1=FunExpr CONS e2=ConsExpr { ConsExp (e1, e2) }
+| NIL { NilExp }
 
 FunExpr :
 | FUN x=ID ARROW e=FunExpr { FunExp (x, e) }
@@ -77,3 +113,6 @@ AExpr :
 | FALSE { BLit false }
 | LPAREN e=Expr RPAREN { e }
 | IF c=Expr THEN t=Expr ELSE e=Expr { IfExp (c, t, e) }
+| MATCH e1=Expr WITH NIL ARROW e2=Expr BAR x=ID CONS y=ID ARROW e3=Expr { MatchExp (e1, e2, x, y, e3) }
+
+

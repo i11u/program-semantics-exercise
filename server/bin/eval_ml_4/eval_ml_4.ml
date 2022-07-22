@@ -47,7 +47,12 @@ let rec pp_exp exp =
   | AppExp (e1, e2) -> 
     (match e2 with
     | AppExp _ | FunExp _ | BinOp _ -> (pp_exp e1) ^ " " ^ "(" ^ (pp_exp e2) ^ ")"
-    |_ -> (pp_exp e1) ^ " " ^ (pp_exp e2)))
+    |_ -> (pp_exp e1) ^ " " ^ (pp_exp e2))
+  | NilExp -> "[]"
+  | ConsExp (e1, e2) -> 
+    (pp_exp e1) ^ " :: " ^ (pp_exp e2)
+  | MatchExp (e1, e2, x, y, e3) -> 
+    "match " ^ (pp_exp e1) ^ " with [] -> " ^ (pp_exp e2) ^ " | " ^ x ^ " :: " ^ y ^ " -> " ^ (pp_exp e3))
 
 let rec pp_env = function
   | [] -> ""
@@ -58,9 +63,11 @@ and pp_value = function
   | IntV i -> string_of_int i
   | BoolV b -> string_of_bool b
   | ProcV (x, exp, env') -> 
-    "(" ^ (pp_env !env') ^ ")" ^ "[fun " ^ x ^ " -> " ^ (pp_exp exp) ^ " ]" 
+    "(" ^ (pp_env env') ^ ")" ^ "[fun " ^ x ^ " -> " ^ (pp_exp exp) ^ " ]" 
   | RecProcV (x, y, exp, env') -> 
-    "(" ^ (pp_env !env') ^ ")" ^ "[rec " ^ x ^ " = fun " ^ y ^ " -> " ^ (pp_exp exp) ^ " ]" 
+    "(" ^ (pp_env env') ^ ")" ^ "[rec " ^ x ^ " = fun " ^ y ^ " -> " ^ (pp_exp exp) ^ " ]" 
+  | NilV -> "[]"
+  | ConsV (v1, v2) -> (pp_value v1) ^ " :: " ^ (pp_value v2)
 
 let pp_judgement = function 
   | EvalExp (env, l, r)-> 
@@ -93,6 +100,8 @@ let pp_derivation = function
         | Eapp -> " by E-App"
         | Eletrec -> " by E-LetRec"
         | Eapprec -> " by E-AppRec"
+        | Enil -> " by E-Nil"
+        | Econs -> " by E-Cons"
         | _ -> err "No possible derivation." 
       in j ^ r
   | PlusExp (n1, n2, n3), rule -> 
@@ -128,26 +137,33 @@ let rec eval_exp env exp =
       let v = eval_exp env e1 in
       let newenv = (x, v)::env
       in eval_exp newenv e2
-  | LetRecExp (x, y, e1, e2) -> 
-      let dummyenv = ref [] in 
-      let newenv = extend x (ProcV (y, e1, dummyenv)) env in 
-      dummyenv := newenv;
+  | LetRecExp (_, _, _, e2) -> 
       eval_exp env e2
   | FunExp (x, exp) -> 
-      ProcV (x, exp, ref env)
+      ProcV (x, exp, env)
   | AppExp (e1, e2) -> 
       let funval = try eval_exp env e1 with _ -> err ((pp_env env) ^ " and " ^ (pp_exp exp) ^ " and " ^ (pp_exp e1) ^ " and " ^ (pp_exp e2)) in 
       let arg = eval_exp env e2 in 
       (match funval with
       | ProcV (x, e, env') -> 
-          let newenv = extend x arg !env' in 
+          let newenv = extend x arg env' in 
           eval_exp newenv e
-      (* | RecProcV (x, y, e, env') -> 
-          let newenv = extend y arg (extend x (ProcV (y, e, ref env)) !env') in  *)
-      | RecProcV (_, y, e, _) -> 
-        (* let newenv = extend y arg (extend x (ProcV (y, e, ref env)) env) in  *)
-        let newenv = extend y arg env in 
+      | RecProcV (x, y, e, env') ->
+        let newenv = extend y arg (extend x funval env') in 
           eval_exp newenv e
+      | _ -> err "No possible evaluation.")
+  | NilExp -> NilV
+  | ConsExp (e1, e2) -> 
+      let v1 = eval_exp env e1 in 
+      let v2 = eval_exp env e2 in 
+      ConsV (v1, v2)
+  | MatchExp (e1, e2, x, y, e3) -> 
+      let p = eval_exp env e1 in 
+      (match p with 
+      | NilV -> 
+          eval_exp env e2
+      | ConsV (v1, v2) -> 
+          eval_exp (extend y v2 (extend x v1 env)) e3
       | _ -> err "No possible evaluation."))
 
 let rec create_dtree judgement =
@@ -198,36 +214,30 @@ let rec create_dtree judgement =
           let right = try eval_exp env r with _ -> err "Evaluation failed." in 
           (match left, right with
           | IntV i1, IntV i2 -> 
+            let t1 = create_dtree (EvalExp (env, l, IntV i1)) in 
+            let t2 = create_dtree (EvalExp (env, r, IntV i2)) in 
             (match binOp, v with
               | Plus, IntV i3 -> 
                   if i1 + i2 = i3
                     then
-                      let t1 = create_dtree (EvalExp (env, l, IntV i1)) in 
-                      let t2 = create_dtree (EvalExp (env, r, IntV i2)) in 
                       let t3 = create_dtree (PlusExp (i1, i2, i3)) in 
                       Tree ((judgement, Eplus), t1::t2::t3::[])
                     else err "No possible derivation."
               | Mult, IntV i3 ->
                   if i1 * i2 = i3
                     then
-                      let t1 = create_dtree (EvalExp (env, l, IntV i1)) in 
-                      let t2 = create_dtree (EvalExp (env, r, IntV i2)) in 
                       let t3 = create_dtree (MultExp (i1, i2, i3)) in 
                       Tree ((judgement, Etimes), t1::t2::t3::[])
                     else err "No possible derivation."
               | Minus, IntV i3 -> 
                   if i1 - i2 = i3
                     then
-                      let t1 = create_dtree (EvalExp (env, l, IntV i1)) in 
-                      let t2 = create_dtree (EvalExp (env, r, IntV i2)) in 
                       let t3 = create_dtree (MinusExp (i1, i2, i3)) in 
                       Tree ((judgement, Eminus), t1::t2::t3::[])
                     else err "No possible derivation."
               | Lt, BoolV b3 ->
                   if (i1 < i2 && b3) || (i1 >= i2 && not b3)
                     then
-                      let t1 = create_dtree (EvalExp (env, l, IntV i1)) in 
-                      let t2 = create_dtree (EvalExp (env, r, IntV i2)) in 
                       let t3 = create_dtree (LtExp (i1, i2, b3)) in 
                       Tree ((judgement, Elt), t1::t2::t3::[])
                     else err "No possible derivation."
@@ -244,60 +254,73 @@ let rec create_dtree judgement =
             else
               err (x ^ " is successfully bound by let-expression, but is evaluated to different value.")
       | LetRecExp (x, y, e1, e2), _ ->
-          let dummyenv = ref [] in 
-          let newenv = extend x (RecProcV (x, y, e1, dummyenv)) env in 
-          dummyenv := newenv;
-          let v1 = try eval_exp newenv e2 with Error s -> err s in 
+          let v1 = try eval_exp (extend x (RecProcV (x, y, e1, env)) env) e2 with Error s -> err s in 
           if v1 = v
             then 
-              let t1 = create_dtree (EvalExp ((extend x (RecProcV (x, y, e1, ref env)) env), e2, v)) in 
+              let t1 = create_dtree (EvalExp ((extend x (RecProcV (x, y, e1, env)) env), e2, v)) in 
               Tree ((judgement, Eletrec), t1::[])
             else
               err (x ^ " is successfully bound by let-rec-expression, but is evaluated to different value.")
       | FunExp (x1, e1), ProcV (x2, e2, env') ->
-          if x1 = x2 && e1 = e2 && env = !env'
+          if x1 = x2 && e1 = e2 && env = env'
             then Tree ((judgement, Efun), Empty::[])
-            (* else err ((pp_env env) ^ "\n" ^ (pp_env !env')) *)
             else err "aaa"
       | AppExp (e1, e2), _ -> 
           let v1 = try eval_exp env e1 with _ -> err "Evaluation failed when evaluating funval of AppExp." in 
           let v2 = try eval_exp env e2 with _ -> err "Evaluation failed when evaluating arg of AppExp." in 
           (match v1 with
           | ProcV (x, e0, env') ->
-            let v0 = try eval_exp (extend x v2 !env') e0 with _ -> err "Evaluation failed when evaluating the final value of AppExp." in 
+            let v0 = try eval_exp (extend x v2 env') e0 with _ -> err "Evaluation failed when evaluating the final value of AppExp." in 
             if v0 = v
               then
                 let t1 = create_dtree (EvalExp (env, e1, ProcV (x, e0, env'))) in 
                 let t2 = create_dtree (EvalExp (env, e2, v2)) in 
-                let t3 = create_dtree (EvalExp ((extend x v2 !env'), e0, v)) in 
+                let t3 = create_dtree (EvalExp ((extend x v2 env'), e0, v)) in 
                 Tree ((judgement, Eapp), t1::t2::t3::[])
               else err "create_dtree error in the assessment of E-App."
           | RecProcV (x, y, e0, env') -> 
-            (* let dummyenv = ref [] in 
-            let newenv = extend x (ProcV (y, e0, dummyenv)) env in 
-            dummyenv := newenv; *)
-            (* let v0 = try eval_exp (extend y v2 newenv) e0 with _ -> err ("Evaluation failed in the final value of AppRecExp. Current env is: " ^ (pp_env (extend y v2 newenv))) in *)
-            let v0 = try eval_exp (extend y v2 env) e0 with _ -> err ("Evaluation failed in the final value of AppRecExp. Current env is: " ^ (pp_env (extend y v2 env))) in
+            let v0 = try eval_exp (extend y v2 (extend x v1 env')) e0 with _ -> err ("Evaluation failed in the final value of AppRecExp. Current env is: " ^ (pp_env (extend y v2 env))) in
             if v0 = v
               then
                 let t1 = create_dtree (EvalExp (env, e1, v1)) in 
                 let t2 = create_dtree (EvalExp (env, e2, v2)) in 
-                let t3 = create_dtree (EvalExp ((extend y v2 (extend x v1 !env')), e0, v)) in 
+                let t3 = create_dtree (EvalExp ((extend y v2 (extend x v1 env')), e0, v)) in 
                 Tree ((judgement, Eapprec), t1::t2::t3::[])
-              else err (
-                "x and y: " ^ x ^ " " ^ y ^ "\n" ^ 
-                "extend y v2 env: " ^ (pp_env (extend y v2 env)) ^ "\n" ^ 
-                "v1: " ^ (pp_value v1) ^ "\n" ^ 
-                "v2: " ^ (pp_value v2) ^ "\n" ^ 
-                "judgement: " ^ (pp_judgement judgement) ^ "\n" ^ 
-                "v: " ^ (pp_value v) ^ "\n" ^ 
-                "v0: " ^ (pp_value v0) ^ "\n" ^ 
-                "e0: " ^ (pp_exp e0) ^ "\n" ^ 
-                "env: " ^ (pp_env env) ^ "\n" ^
-                "env': " ^ (pp_env !env') ^ "\n" ^ 
-                "create_dtree error in the assessment of E-AppRec."
-              )
+              else err "create_dtree error in the assessment of E-AppRec."
           | _ -> err "Evaluation on funval of AppExp should go to ProcV, but different value is obtained.")
+      | NilExp, NilV -> Tree ((judgement, Enil), Empty::[])
+      | ConsExp (e1, e2), _ -> 
+          let v1 = eval_exp env e1 in 
+          let v2 = eval_exp env e2 in 
+          if v = ConsV (v1, v2)
+            then
+              let t1 = create_dtree (EvalExp (env, e1, v1)) in 
+              let t2 = create_dtree (EvalExp (env, e2, v2)) in 
+              Tree ((judgement, Econs), t1::t2::[])
+              else err "create_dtree error in the assessment of E-ConsExp."
+      | MatchExp (e1, e2, x, y, e3), _ -> 
+          let p = eval_exp env e1 in 
+          (match p with
+          | NilV -> 
+              let result = eval_exp env e2 in 
+              if result = v
+                then
+                  let t1 = create_dtree (EvalExp (env, e1, p)) in 
+                  let t2 = create_dtree (EvalExp (env, e2, v)) in 
+                  Tree ((judgement, Ematchnil), t1::t2::[])
+                else 
+                  err "create_dtree error during MatchExp."
+          | ConsV (v1, v2) -> 
+              let newenv = extend y v2 (extend x v1 env) in 
+              let result = eval_exp newenv e3 in
+              if result = v 
+                then
+                  let t1 = create_dtree (EvalExp (env, e1, p)) in 
+                  let t2 = create_dtree (EvalExp (newenv, e3, v)) in 
+                  Tree ((judgement, Ematchcons), t1::t2::[])
+                else 
+                  err "create_dtree error during MatchExp."
+          | _ -> err "Pattern should go to NilV or ConsV.")
       | _, _ -> err "create_dtree error during EvalExp.")
   | PlusExp (n1, n2, n3) -> 
       if n1 + n2 = n3 

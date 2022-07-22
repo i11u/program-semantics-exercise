@@ -2,6 +2,7 @@
 (* The type of tokens. *)
 
 type token = 
+  | WITH
   | TURNSTILE
   | TRUE
   | THEN
@@ -9,8 +10,10 @@ type token =
   | REC
   | RBRACKET
   | PLUS
+  | NIL
   | MULT
   | MINUS
+  | MATCH
   | LT
   | LPAREN
   | LET
@@ -24,7 +27,9 @@ type token =
   | EVALTO
   | EQ
   | ELSE
+  | CONS
   | COMMA
+  | BAR
   | ARROW
 
 (* This exception is raised by the monolithic API functions. *)

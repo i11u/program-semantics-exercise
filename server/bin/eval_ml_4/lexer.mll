@@ -11,6 +11,8 @@ let reservedWords = [
   ("in", Parser.IN);
   ("fun", Parser.FUN);
   ("rec", Parser.REC);
+  ("match", Parser.MATCH);
+  ("with", Parser.WITH);
 ]
 }
 
@@ -37,4 +39,7 @@ rule main = parse
 | ")" { Parser.RPAREN }
 | "[" { Parser.LBRACKET }
 | "]" { Parser.RBRACKET }
+| "::" { Parser.CONS }
+| "[]" { Parser.NIL }
+| "|" { Parser.BAR }
 | eof { exit 0 }

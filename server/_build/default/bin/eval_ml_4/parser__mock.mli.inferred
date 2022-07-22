@@ -1,13 +1,16 @@
 type token =
-    TURNSTILE
+    WITH
+  | TURNSTILE
   | TRUE
   | THEN
   | RPAREN
   | REC
   | RBRACKET
   | PLUS
+  | NIL
   | MULT
   | MINUS
+  | MATCH
   | LT
   | LPAREN
   | LET
@@ -21,12 +24,15 @@ type token =
   | EVALTO
   | EQ
   | ELSE
+  | CONS
   | COMMA
+  | BAR
   | ARROW
 val menhir_begin_marker : int
 val xv_toplevel : Syntax.judgement
 val xv_VarList : (string * Syntax.exval) list
 val xv_SingleVar : string * Syntax.exval
+val xv_SingleValue : Syntax.exval
 val xv_RecProcVExpr : Syntax.exval
 val xv_ProcVExpr : Syntax.exval
 val xv_PMExpr : Syntax.exp
@@ -35,6 +41,8 @@ val xv_LetExpr : Syntax.exp
 val xv_LTExpr : Syntax.exp
 val xv_FunExpr : Syntax.exp
 val xv_Expr : Syntax.exp
+val xv_ConsVExpr : Syntax.exval
+val xv_ConsExpr : Syntax.exp
 val xv_AppExpr : Syntax.exp
 val xv_AExpr : Syntax.exp
 val menhir_end_marker : int

@@ -12,12 +12,17 @@ type exp =
   | LetRecExp of id * id * exp * exp
   | FunExp of id * exp
   | AppExp of exp * exp
+  | NilExp
+  | ConsExp of exp * exp
+  | MatchExp of exp * exp * id * id * exp
 
 type exval = 
   | IntV of int
   | BoolV of bool
-  | ProcV of id * exp * (id * dnval) list ref
-  | RecProcV of id * id * exp * (id * dnval) list ref
+  | ProcV of id * exp * (id * dnval) list
+  | RecProcV of id * id * exp * (id * dnval) list
+  | NilV
+  | ConsV of dnval * dnval
 and dnval = exval
 
 type judgement = 
@@ -43,6 +48,10 @@ type rule =
 | Eapp
 | Eletrec
 | Eapprec
+| Enil
+| Econs
+| Ematchnil
+| Ematchcons
 | Bplus 
 | Bminus 
 | Btimes 
