@@ -1,0 +1,36 @@
+type token =
+    TURNSTILE
+  | TRUE
+  | THEN
+  | RPAREN
+  | PLUSC
+  | PLUS
+  | MULTC
+  | MULT
+  | MINUSC
+  | MINUS
+  | LTC
+  | LT
+  | LPAREN
+  | LET
+  | IS
+  | INTV of int
+  | IN
+  | IF
+  | ID of string
+  | FALSE
+  | EVALTO
+  | EQ
+  | ELSE
+  | COMMA
+val menhir_begin_marker : int
+val xv_toplevel : Syntax.judgement
+val xv_VarList : (string * Syntax.exval) list
+val xv_SingleVar : string * Syntax.exval
+val xv_PMExpr : Syntax.exp
+val xv_MExpr : Syntax.exp
+val xv_LetExpr : Syntax.exp
+val xv_LTExpr : Syntax.exp
+val xv_Expr : Syntax.exp
+val xv_AExpr : Syntax.exp
+val menhir_end_marker : int

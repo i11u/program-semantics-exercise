@@ -1,0 +1,10 @@
+(** @canonical Eval_nat_exp.Lexer *)
+module Lexer = Eval_nat_exp__Lexer
+
+
+(** @canonical Eval_nat_exp.Parser *)
+module Parser = Eval_nat_exp__Parser
+
+
+(** @canonical Eval_nat_exp.Syntax *)
+module Syntax = Eval_nat_exp__Syntax

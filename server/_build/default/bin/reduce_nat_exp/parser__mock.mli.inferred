@@ -1,0 +1,19 @@
+type token =
+    RPAREN
+  | REDUCE
+  | PLUSOP
+  | PLUS
+  | MULTOP
+  | MULT
+  | MREDUCE
+  | LPAREN
+  | IS
+  | INTV of int
+  | DREDUCE
+val menhir_begin_marker : int
+val xv_toplevel : Syntax.judgement
+val xv_PExpr : Syntax.e
+val xv_MExpr : Syntax.e
+val xv_Expr : Syntax.e
+val xv_AExpr : Syntax.e
+val menhir_end_marker : int

@@ -1,0 +1,15 @@
+{
+  "name": "Interpreter",
+  "description": "This is an exntensoin to solve exercises of プログラム意味論",
+  "version": "1.0",
+  "manifest_version": 3,
+  "content_scripts": [
+    {
+      "matches": [
+        "http://www.fos.kuis.kyoto-u.ac.jp/~igarashi/CoPL/index.cgi?qno=**"
+      ],
+      "js": ["derive.js"]
+    }
+  ],
+  "permissions": ["activeTab", "scripting"]
+}

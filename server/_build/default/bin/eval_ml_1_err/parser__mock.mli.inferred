@@ -1,0 +1,23 @@
+type token =
+    TRUE
+  | THEN
+  | RPAREN
+  | PLUS
+  | MULT
+  | MINUS
+  | LT
+  | LPAREN
+  | INTV of int
+  | IF
+  | FALSE
+  | EVALTO
+  | ERROR
+  | ELSE
+val menhir_begin_marker : int
+val xv_toplevel : Syntax.judgement
+val xv_PMExpr : Syntax.exp
+val xv_MExpr : Syntax.exp
+val xv_LTExpr : Syntax.exp
+val xv_Expr : Syntax.exp
+val xv_AExpr : Syntax.exp
+val menhir_end_marker : int

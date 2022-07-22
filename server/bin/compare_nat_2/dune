@@ -1,0 +1,7 @@
+(menhir
+ (modules parser))
+(ocamllex
+ (modules lexer))
+(library
+ (name compare_nat_2)
+ (libraries util))

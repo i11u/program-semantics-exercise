@@ -1,0 +1,17 @@
+(executable
+ (public_name server)
+ (name main)
+ (libraries 
+ opium 
+ util 
+ nat 
+ compare_nat_1 
+ compare_nat_2
+ compare_nat_3
+ eval_nat_exp 
+ eval_ml_1
+ eval_ml_1_err
+ eval_ml_2
+ eval_ml_3
+ eval_ml_4
+ ))

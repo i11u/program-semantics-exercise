@@ -1,0 +1,10 @@
+(** @canonical Reduce_nat_exp.Lexer *)
+module Lexer = Reduce_nat_exp__Lexer
+
+
+(** @canonical Reduce_nat_exp.Parser *)
+module Parser = Reduce_nat_exp__Parser
+
+
+(** @canonical Reduce_nat_exp.Syntax *)
+module Syntax = Reduce_nat_exp__Syntax

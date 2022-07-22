@@ -1,0 +1,4 @@
+type token = LT | INTV of int
+val menhir_begin_marker : int
+val xv_toplevel : Syntax.judgement
+val menhir_end_marker : int

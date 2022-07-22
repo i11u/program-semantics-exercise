@@ -1,0 +1,7 @@
+(menhir
+	(modules parser))
+(ocamllex
+	(modules lexer))
+(library
+	(name eval_ml_4)
+	(libraries util))

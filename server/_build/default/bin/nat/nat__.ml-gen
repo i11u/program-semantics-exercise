@@ -1,0 +1,10 @@
+(** @canonical Nat.Lexer *)
+module Lexer = Nat__Lexer
+
+
+(** @canonical Nat.Parser *)
+module Parser = Nat__Parser
+
+
+(** @canonical Nat.Syntax *)
+module Syntax = Nat__Syntax

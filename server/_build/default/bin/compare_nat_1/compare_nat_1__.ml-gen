@@ -1,0 +1,10 @@
+(** @canonical Compare_nat_1.Lexer *)
+module Lexer = Compare_nat_1__Lexer
+
+
+(** @canonical Compare_nat_1.Parser *)
+module Parser = Compare_nat_1__Parser
+
+
+(** @canonical Compare_nat_1.Syntax *)
+module Syntax = Compare_nat_1__Syntax

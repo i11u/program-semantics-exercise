@@ -1,0 +1,10 @@
+(** @canonical Dune__exe.Derive *)
+module Derive = Dune__exe__Derive
+
+
+(** @canonical Dune__exe.Main *)
+module Main = Dune__exe__Main
+
+
+(** @canonical Dune__exe.Problem *)
+module Problem = Dune__exe__Problem

@@ -1,0 +1,10 @@
+(** @canonical Eval_ml_3.Lexer *)
+module Lexer = Eval_ml_3__Lexer
+
+
+(** @canonical Eval_ml_3.Parser *)
+module Parser = Eval_ml_3__Parser
+
+
+(** @canonical Eval_ml_3.Syntax *)
+module Syntax = Eval_ml_3__Syntax
