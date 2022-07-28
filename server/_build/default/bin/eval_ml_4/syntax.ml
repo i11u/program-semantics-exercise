@@ -35,8 +35,7 @@ type judgement =
 type rule = 
 | Eint 
 | Ebool 
-| Evar1
-| Evar2
+| Evar
 | EifT 
 | EifF 
 | Eplus 

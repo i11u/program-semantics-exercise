@@ -39,7 +39,7 @@ rule main = parse
 | ")" { Parser.RPAREN }
 | "[" { Parser.LBRACKET }
 | "]" { Parser.RBRACKET }
-| "::" { Parser.CONS }
-| "[]" { Parser.NIL }
+| "::" { Parser.CONSTRUCT }
+| "[]" { Parser.LBRACKET_RBRACKET }
 | "|" { Parser.BAR }
 | eof { exit 0 }

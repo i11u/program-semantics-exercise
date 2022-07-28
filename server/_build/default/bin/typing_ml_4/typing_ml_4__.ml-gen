@@ -1,0 +1,10 @@
+(** @canonical Typing_ml_4.Lexer *)
+module Lexer = Typing_ml_4__Lexer
+
+
+(** @canonical Typing_ml_4.Parser *)
+module Parser = Typing_ml_4__Parser
+
+
+(** @canonical Typing_ml_4.Syntax *)
+module Syntax = Typing_ml_4__Syntax

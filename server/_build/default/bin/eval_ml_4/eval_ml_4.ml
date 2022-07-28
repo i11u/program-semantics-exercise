@@ -46,11 +46,12 @@ let rec pp_exp exp =
     "fun " ^ x ^ " -> " ^ (pp_exp exp)
   | AppExp (e1, e2) -> 
     (match e2 with
-    | AppExp _ | FunExp _ | BinOp _ -> (pp_exp e1) ^ " " ^ "(" ^ (pp_exp e2) ^ ")"
+    | AppExp _ | FunExp _ | BinOp _ | ConsExp _ -> (pp_exp e1) ^ " " ^ "(" ^ (pp_exp e2) ^ ")"
     |_ -> (pp_exp e1) ^ " " ^ (pp_exp e2))
   | NilExp -> "[]"
   | ConsExp (e1, e2) -> 
-    (pp_exp e1) ^ " :: " ^ (pp_exp e2)
+    (match e1 with | FunExp _ | ConsExp _ -> "(" ^ (pp_exp e1) ^ ")" | _ -> (pp_exp e1)) 
+    ^ " :: " ^ (match e2 with | FunExp _ -> "(" ^ (pp_exp e2) ^ ")" | _ -> (pp_exp e2))
   | MatchExp (e1, e2, x, y, e3) -> 
     "match " ^ (pp_exp e1) ^ " with [] -> " ^ (pp_exp e2) ^ " | " ^ x ^ " :: " ^ y ^ " -> " ^ (pp_exp e3))
 
@@ -67,7 +68,10 @@ and pp_value = function
   | RecProcV (x, y, exp, env') -> 
     "(" ^ (pp_env env') ^ ")" ^ "[rec " ^ x ^ " = fun " ^ y ^ " -> " ^ (pp_exp exp) ^ " ]" 
   | NilV -> "[]"
-  | ConsV (v1, v2) -> (pp_value v1) ^ " :: " ^ (pp_value v2)
+  | ConsV (v1, v2) -> 
+    (match v1 with | ProcV _ | RecProcV _ | ConsV _ -> "(" ^ (pp_value v1) ^ ")" | _ -> (pp_value v1)) 
+    ^ " :: " 
+    ^ (match v2 with | ProcV _ | RecProcV _ -> "(" ^ (pp_value v2) ^ ")" | _ -> (pp_value v2))
 
 let pp_judgement = function 
   | EvalExp (env, l, r)-> 
@@ -87,8 +91,7 @@ let pp_derivation = function
       let r = match rule with 
         | Eint -> " by E-Int"
         | Ebool -> " by E-Bool"
-        | Evar1 -> " by E-Var1"
-        | Evar2 -> " by E-Var2"
+        | Evar -> " by E-Var"
         | EifT -> " by E-IfT"
         | EifF -> " by E-IfF"
         | Eplus -> " by E-Plus"
@@ -100,6 +103,8 @@ let pp_derivation = function
         | Eapp -> " by E-App"
         | Eletrec -> " by E-LetRec"
         | Eapprec -> " by E-AppRec"
+        | Ematchnil -> " by E-MatchNil"
+        | Ematchcons -> " by E-MatchCons"
         | Enil -> " by E-Nil"
         | Econs -> " by E-Cons"
         | _ -> err "No possible derivation." 
@@ -176,17 +181,9 @@ let rec create_dtree judgement =
           if b1 = b2 then Tree ((judgement, Ebool), Empty::[]) else err "No possible derivation."
       | Var x, _ -> 
           let v1 = try lookup x env with Not_found -> err ("Variable not bound." ^ x) in 
-          (* 最後ならVar1, 最後でなければVar2を用いる *)
-          let is_last = try lookup_last x env with Error s -> err s in 
-          if is_last 
-            then 
-              if v1 = v
-                then Tree ((judgement, Evar1), Empty::[]) 
-                else err "Value of e1 does not match e2."
-            else
-              if v1 = v
-                then let t1 = create_dtree (EvalExp ((except_last env), e, v)) in Tree ((judgement, Evar2), t1::[])
-                else err "Value of e1 does not match e2."
+            if v1 = v
+              then Tree ((judgement, Evar), Empty::[]) 
+              else err "Value of e does not match v."
       | IfExp (c, t, e), _ -> 
           let test = try eval_exp env c with _ -> err "Evaluation failed." in 
           (match test with

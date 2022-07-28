@@ -226,12 +226,12 @@ and __ocaml_lex_main_rec lexbuf __ocaml_lex_state =
 
   | 15 ->
 # 42 "bin/eval_ml_4/lexer.mll"
-       ( Parser.CONS )
+       ( Parser.CONSTRUCT )
 # 231 "bin/eval_ml_4/lexer.ml"
 
   | 16 ->
 # 43 "bin/eval_ml_4/lexer.mll"
-       ( Parser.NIL )
+       ( Parser.LBRACKET_RBRACKET )
 # 236 "bin/eval_ml_4/lexer.ml"
 
   | 17 ->

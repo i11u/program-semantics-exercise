@@ -29,4 +29,7 @@ let derive_tree s =
   | "EvalML2" -> let module D = Derive(Eval_ml_2 : PROOF_SYS) in D.derive_tree
   | "EvalML3" -> let module D = Derive(Eval_ml_3 : PROOF_SYS) in D.derive_tree
   | "EvalML4" -> let module D = Derive(Eval_ml_4 : PROOF_SYS) in D.derive_tree
+  | "EvalML5" -> let module D = Derive(Eval_ml_5 : PROOF_SYS) in D.derive_tree
+  | "TypingML4" -> let module D = Derive(Typing_ml_4 : PROOF_SYS) in D.derive_tree
+  (* | "PolyTypingML4" -> let module D = Derive(Typing_poly_ml_4 : PROOF_SYS) in D.derive_tree *)
   | _ -> err ("No such proof system: "^s))
