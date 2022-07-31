@@ -1,1 +1,1 @@
-bin/typing_ml_4/typing_ml_4.ml: Lexer Lexing List Parser Syntax Util
+bin/typing_ml_4/typing_ml_4.ml: Char Lexer Lexing List Parser Set Syntax Util

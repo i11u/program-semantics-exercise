@@ -32,7 +32,7 @@ Value :
 | v=ProcVExpr { v }
 | v=RecProcVExpr { v }
 | LBRACKET_RBRACKET { NilV }
-// ここをコメント解除する→Valueにリストを許容できる
+// ここをコメント解除する→Valueにリストを許容できるが、SingleValueは許容できなくなる
 // なぜかは原因解読中
 // | i=INTV CONSTRUCT v2=Value { ConsV (IntV i, v2) }
 

@@ -8,28 +8,28 @@ type token =
   | THEN
   | RPAREN
   | REC
-  | RBRACKET
   | PLUS
   | MULT
   | MINUS
   | MATCH
   | LT
   | LPAREN
+  | LIST
   | LET
   | LBRACKET_RBRACKET
-  | LBRACKET
   | INTV of (int)
+  | INT
   | IN
   | IF
   | ID of (Syntax.id)
   | FUN
   | FALSE
-  | EVALTO
   | EQ
   | ELSE
   | CONSTRUCT
   | COMMA
   | COLON
+  | BOOL
   | BAR
   | ARROW
 

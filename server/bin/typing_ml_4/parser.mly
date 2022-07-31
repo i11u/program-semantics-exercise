@@ -2,15 +2,16 @@
 open Syntax
 %}
 
-%token EVALTO IF THEN ELSE TRUE FALSE
+%token IF THEN ELSE TRUE FALSE
 %token PLUS MULT MINUS LT
 %token LET EQ IN COMMA
 %token LPAREN RPAREN
 %token TURNSTILE
-%token FUN REC ARROW LBRACKET RBRACKET
+%token FUN REC ARROW
 %token LBRACKET_RBRACKET CONSTRUCT
 %token MATCH WITH BAR
 %token COLON
+%token INT BOOL LIST
 
 %token <Syntax.id> ID
 %token <int> INTV
@@ -22,36 +23,47 @@ open Syntax
 %%
 
 toplevel :
-| vl=VarList TURNSTILE e=Expr EVALTO v=Value { EvalExp (vl, e, v) }
+| tl=TyVarList TURNSTILE e=Expr COLON t=Type { TyExp (tl, e, t) }
 
-// Value
+// Type
 
-Value :
-| i=INTV { IntV i }
-| TRUE { BoolV true }
-| FALSE { BoolV false }
-| v=ProcVExpr { v }
-| v=RecProcVExpr { v }
-| LBRACKET_RBRACKET { NilV }
-// ここをコメント解除する→Valueにリストを許容できる
-// なぜかは原因解読中
-// | i=INTV CONSTRUCT v2=Value { ConsV (IntV i, v2) }
+// Parserがバグるため、仕方なく、問題ごとに許容するTypeを手書きしている。。。
 
-ProcVExpr :
-| LPAREN v=VarList RPAREN LBRACKET FUN x=ID ARROW e=Expr RBRACKET { ProcV (x, e, v) }
+// バグ↓
+// Type : 
+// | INT { TyInt }
+// | BOOL { TyBool }
+// | t=ListType { t }
+// | t=FunType{ t }
 
-RecProcVExpr :
-| LPAREN v=VarList RPAREN LBRACKET REC x=ID EQ FUN y=ID ARROW e=Expr RBRACKET { RecProcV (x, y, e, v) }
+// FunType :
+// | t1=ListType ARROW t2=ListType { TyFun (t1, t2) }
 
-// Environment
+// ListType :
+// | INT LIST { TyList TyInt }
+// | BOOL LIST { TyList TyBool }
 
-VarList :
-| hd=SingleVar COMMA tl=VarList { hd::tl } 
+Type :
+| INT { TyInt }  // 80, 81, 82, 83, 85, 87, 92, 99, 100, 101, 103
+// | BOOL { TyBool }  // 94
+// | INT ARROW INT { TyFun (TyInt, TyInt) }  // 84, 95, 96, 97, 98
+// | LPAREN INT ARROW INT RPAREN ARROW INT { TyFun (TyFun (TyInt, TyInt), TyInt) }  // 86
+// | INT LIST { TyList TyInt }  // 88, 93
+// | BOOL LIST { TyList TyBool }  // 89, 105, 106
+// | INT ARROW INT ARROW INT { TyFun (TyInt, TyFun (TyInt, TyInt)) }  // 90
+// | BOOL ARROW INT ARROW BOOL { TyFun (TyBool, TyFun (TyInt, TyBool)) }  // 91
+// | INT LIST ARROW INT { TyFun (TyList TyInt, TyInt) }  // 102
+// | INT LIST ARROW INT { TyFun (TyList TyInt, TyFun (TyList TyInt, TyList TyInt)) }  // 104
+
+// Type Environment
+
+TyVarList :
+| hd=SingleVar COMMA tl=TyVarList { hd::tl } 
 | v=SingleVar { v::[] }
 | { [] }
 
 SingleVar :
-| x=ID EQ v=Value { (x, v) }
+| x=ID COLON v=Type { (x, v) }
 
 // Expression
 

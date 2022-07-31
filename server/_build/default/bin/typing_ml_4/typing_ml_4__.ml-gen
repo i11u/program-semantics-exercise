@@ -2,6 +2,10 @@
 module Lexer = Typing_ml_4__Lexer
 
 
+(** @canonical Typing_ml_4.MySet *)
+module MySet = Typing_ml_4__MySet
+
+
 (** @canonical Typing_ml_4.Parser *)
 module Parser = Typing_ml_4__Parser
 

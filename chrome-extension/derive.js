@@ -1,4 +1,5 @@
-const ORIGIN = "https://f706-126-81-21-47.ngrok.io";
+// 現状では、ngrokを起動するたびにURLを変更し、拡張機能をリロードする必要がある
+const ORIGIN = "https://953f-126-81-21-47.ngrok.io";
 
 const HEADERS = {
   // Accept: "application/json",

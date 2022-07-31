@@ -9,12 +9,6 @@ type derivation = judgement * rule
 
 type dtree = Empty | Tree of derivation * dtree list
 
-type ty = 
-  | TyInt
-  | TyBool
-  | TyFun of ty * ty 
-  | TyList of ty
-
 let judgement_from_string root = try Parser.toplevel Lexer.main (Lexing.from_string root) with _ -> err "Parsing failed."
 
 let lookup x env =
@@ -61,283 +55,349 @@ let rec pp_exp exp =
   | MatchExp (e1, e2, x, y, e3) -> 
     "match " ^ (pp_exp e1) ^ " with [] -> " ^ (pp_exp e2) ^ " | " ^ x ^ " :: " ^ y ^ " -> " ^ (pp_exp e3))
 
-let rec pp_env = function
-  | [] -> ""
-  | (id, v)::[] -> id ^ " = " ^ (pp_value v) ^ (pp_env [])
-  | (id, v)::tl -> id ^ " = " ^ (pp_value v) ^ ", " ^ (pp_env tl)
+and pp_ty = function 
+  | TyVar i -> "'"^(Char.escaped (Char.chr (i+97)))
+  | TyInt -> "int"
+  | TyBool -> "bool"
+  | TyList t -> (pp_ty t) ^ " list"
+  | TyFun (t1, t2) ->
+    match t1 with TyFun _ -> "(" ^ (pp_ty t1) ^ ") -> " ^ (pp_ty t2) | _ -> (pp_ty t1) ^ " -> " ^ (pp_ty t2)
 
-and pp_value = function
-  | IntV i -> string_of_int i
-  | BoolV b -> string_of_bool b
-  | ProcV (x, exp, env') -> 
-    "(" ^ (pp_env env') ^ ")" ^ "[fun " ^ x ^ " -> " ^ (pp_exp exp) ^ " ]" 
-  | RecProcV (x, y, exp, env') -> 
-    "(" ^ (pp_env env') ^ ")" ^ "[rec " ^ x ^ " = fun " ^ y ^ " -> " ^ (pp_exp exp) ^ " ]" 
-  | NilV -> "[]"
-  | ConsV (v1, v2) -> 
-    (match v1 with | ProcV _ | RecProcV _ | ConsV _ -> "(" ^ (pp_value v1) ^ ")" | _ -> (pp_value v1)) 
-    ^ " :: " 
-    ^ (match v2 with | ProcV _ | RecProcV _ -> "(" ^ (pp_value v2) ^ ")" | _ -> (pp_value v2))
+let rec pp_tyenv1 = function
+  | [] -> ""
+  | (id, t)::[] -> id ^ " : " ^ (pp_ty t) ^ (pp_tyenv1 [])
+  | (id, t)::tl -> id ^ " : " ^ (pp_ty t) ^ ", " ^ (pp_tyenv1 tl)
+
+let rec pp_tyenv = function
+  | [] -> ""
+  | (id, (_, t))::[] -> id ^ " : " ^ (pp_ty t) ^ (pp_tyenv [])
+  | (id, (_, t))::tl -> id ^ " : " ^ (pp_ty t) ^ ", " ^ (pp_tyenv tl)
 
 let pp_judgement = function 
-  | EvalExp (env, l, r)-> 
-    let j = (pp_env env) ^ " |- " ^ (pp_exp l) ^ " evalto " ^ (pp_value r) in j
-  | PlusExp (n1, n2, n3) -> 
-    let j = (string_of_int n1) ^ " plus " ^ (string_of_int n2) ^ " is " ^ (string_of_int n3) in j
-  | MultExp (n1, n2, n3) -> 
-    let j = (string_of_int n1) ^ " times " ^ (string_of_int n2) ^ " is " ^ (string_of_int n3) in j
-  | MinusExp (n1, n2, n3) -> 
-    let j = (string_of_int n1) ^ " minus " ^ (string_of_int n2) ^ " is " ^ (string_of_int n3) in j
-  | LtExp (n1, n2, b3) -> 
-    let j = (string_of_int n1) ^ " less than " ^ (string_of_int n2) ^ " is " ^ (string_of_bool b3) in j
+  | TyExp (env, l, r)-> 
+    let j = (pp_tyenv1 env) ^ " |- " ^ (pp_exp l) ^ " : " ^ (pp_ty r) in j
     
 let pp_derivation = function 
-  | EvalExp (env, l, r), rule -> 
-      let j = (pp_env env) ^ " |- " ^ (pp_exp l) ^ " evalto " ^ (pp_value r) in
+  | TyExp (tyenv, l, r), rule -> 
+      let j = (pp_tyenv1 tyenv) ^ " |- " ^ (pp_exp l) ^ " : " ^ (pp_ty r) in
       let r = match rule with 
-        | Eint -> " by E-Int"
-        | Ebool -> " by E-Bool"
-        | Evar -> " by E-Var"
-        | EifT -> " by E-IfT"
-        | EifF -> " by E-IfF"
-        | Eplus -> " by E-Plus"
-        | Eminus -> " by E-Minus" 
-        | Etimes -> " by E-Times" 
-        | Elt -> " by E-Lt"
-        | Elet -> " by E-Let"
-        | Efun -> " by E-Fun"
-        | Eapp -> " by E-App"
-        | Eletrec -> " by E-LetRec"
-        | Eapprec -> " by E-AppRec"
-        | Ematchnil -> " by E-MatchNil"
-        | Ematchcons -> " by E-MatchCons"
-        | Enil -> " by E-Nil"
-        | Econs -> " by E-Cons"
-        | _ -> err "No possible derivation." 
+        | Tint -> " by T-Int" 
+        | Tbool -> " by T-Bool"
+        | Tif -> " by T-If"
+        | Tplus -> " by T-Plus"
+        | Tminus -> " by T-Minus"
+        | Ttimes -> " by T-Times"
+        | Tlt -> " by T-Lt"
+        | Tvar -> " by T-Var"
+        | Tlet -> " by T-Let"
+        | Tfun -> " by T-Fun"
+        | Tapp -> " by T-App"
+        | Tletrec -> " by T-LetRec"
+        | Tnil -> " by T-Nil"
+        | Tcons -> " by T-Cons"
+        | Tmatch -> " by T-Match"
       in j ^ r
-  | PlusExp (n1, n2, n3), rule -> 
-      let j = (string_of_int n1) ^ " plus " ^ (string_of_int n2) ^ " is " ^ (string_of_int n3) in 
-      let r = match rule with Bplus -> " by B-Plus" | _ -> err "No possible derivation." in j ^ r
-  | MultExp (n1, n2, n3), rule -> 
-      let j = (string_of_int n1) ^ " times " ^ (string_of_int n2) ^ " is " ^ (string_of_int n3) in 
-      let r = match rule with Btimes -> " by B-Times" | _ -> err "No possible derivation." in j ^ r
-  | MinusExp (n1, n2, n3), rule -> 
-      let j = (string_of_int n1) ^ " minus " ^ (string_of_int n2) ^ " is " ^ (string_of_int n3) in 
-      let r = match rule with Bminus -> " by B-Minus" | _ -> err "No possible derivation." in j ^ r
-  | LtExp (n1, n2, b3), rule -> 
-      let j = (string_of_int n1) ^ " less than " ^ (string_of_int n2) ^ " is " ^ (string_of_bool b3) in 
-      let r = match rule with Blt -> " by B-Lt" | _ -> err "No possible derivation." in j ^ r
 
-let rec eval_exp env exp = 
-  (match exp with
-  | Var x -> (try lookup x env with Not_found -> err ("Variable not bound " ^ x ^ "."))
-  | ILit i -> IntV i
-  | BLit b -> BoolV b
-  | BinOp (binOp, e1, e2) -> 
-      (match binOp, eval_exp env e1, eval_exp env e2 with
-      | Plus, IntV arg1, IntV arg2 -> IntV (arg1 + arg2)
-      | Mult, IntV arg1, IntV arg2 -> IntV (arg1 * arg2)
-      | Minus, IntV arg1, IntV arg2 -> IntV (arg1 - arg2)
-      | Lt, IntV arg1, IntV arg2 -> BoolV (arg1 < arg2)
-      | _, _, _ -> err "No possible evaluation.")
-  | IfExp (c, t, e) -> 
-      (match eval_exp env c with
-      | BoolV b -> if b then eval_exp env t else eval_exp env e
-      | _ -> err "No possible derivation.")
-  | LetExp (x, e1, e2) -> 
-      let v = eval_exp env e1 in
-      let newenv = (x, v)::env
-      in eval_exp newenv e2
-  | LetRecExp (_, _, _, e2) -> 
-      eval_exp env e2
-  | FunExp (x, exp) -> 
-      ProcV (x, exp, env)
-  | AppExp (e1, e2) -> 
-      let funval = try eval_exp env e1 with _ -> err ((pp_env env) ^ " and " ^ (pp_exp exp) ^ " and " ^ (pp_exp e1) ^ " and " ^ (pp_exp e2)) in 
-      let arg = eval_exp env e2 in 
-      (match funval with
-      | ProcV (x, e, env') -> 
-          let newenv = extend x arg env' in 
-          eval_exp newenv e
-      | RecProcV (x, y, e, env') ->
-        let newenv = extend y arg (extend x funval env') in 
-          eval_exp newenv e
-      | _ -> err "No possible evaluation.")
-  | NilExp -> NilV
-  | ConsExp (e1, e2) -> 
-      let v1 = eval_exp env e1 in 
-      let v2 = eval_exp env e2 in 
-      ConsV (v1, v2)
-  | MatchExp (e1, e2, x, y, e3) -> 
-      let p = eval_exp env e1 in 
-      (match p with 
-      | NilV -> 
-          eval_exp env e2
-      | ConsV (v1, v2) -> 
-          eval_exp (extend y v2 (extend x v1 env)) e3
-      | _ -> err "No possible evaluation."))
+let rec pp_eqs eqs =
+  (match eqs with
+    [] -> ""
+  | (ty1, ty2)::tl -> 
+      (pp_ty ty1) ^ " = " ^ (pp_ty ty2) ^ ", " ^ (pp_eqs tl))
+
+let rec pp_subst (subst : (tyvar * ty) list) =
+  (match subst with
+    [] -> ""
+  | (ty1, ty2)::tl -> 
+      (pp_ty (TyVar ty1)) ^ "=" ^ (pp_ty ty2) ^ ", " ^ (pp_subst tl))
+
+let fresh_tyvar = 
+  let counter = ref 0 in (* 次に返すべきtyvar型の値を参照で持っておいて *)
+  let body () =
+    let v = !counter in 
+      counter := v + 1; v (* 呼び出されたら参照をインクリメントして、古いcounterの参照先の値を返す *)
+  in body
+
+(* tyに現れる自由な型変数の識別子（つまり、tyvar型の集合）を返す関数 *)
+(* let rec freevar_ty ty = 
+  (match ty with
+      TyInt -> MySet.empty
+    | TyBool -> MySet.empty
+    | TyVar i -> MySet.singleton i
+    | TyFun (ty1, ty2) -> MySet.union (freevar_ty ty1) (freevar_ty ty2)
+    | TyList t -> freevar_ty t) *)
+    
+let rec occurs tx t = 
+  if tx = t then true
+  else 
+    match t with
+    | TyFun (t1, t2) -> (occurs tx t1) || (occurs tx t2)
+    | TyList t' -> (occurs tx t')
+    | _ -> false
+
+(* 型代入を目的の式の型に適用し、式全体の型を得る関数 *)
+let rec subst_type subst ty =
+  (match ty with
+      TyVar i ->
+        let rec subst_ty i = function
+            [] -> ty
+          | ((id, typ)::tl) -> if id = i then typ else subst_ty id tl
+        in subst_ty i subst
+    | TyFun (ty1, ty2) -> TyFun (subst_type subst ty1, subst_type subst ty2)
+    | _ -> ty)
+
+(* 型代入を型の等式集合に変換する。型の等式制約ty1 = ty2は(ty1, ty2)というペアで表現し、
+   等式集合はペアのリストで表現 *)
+let eqs_of_subst s = List.map (fun (n, t) -> (TyVar n, t)) s
+
+(* 型の等式集合に型代入を適用する関数 *)
+let rec subst_ty subst ty =
+  let rec subst_ty1 subst1 id =
+    match subst1 with
+    | [] -> TyVar id
+    | (tx, t1) :: subst2 -> 
+      if tx = id then t1
+      else subst_ty1 subst2 id
+    in match ty with
+    | TyInt -> TyInt
+    | TyBool -> TyBool
+    | TyFun (t2, t3) -> TyFun (subst_ty subst t2, subst_ty subst t3)
+    | TyVar id -> subst_ty1 subst id
+    | TyList t' -> TyList (subst_ty subst t')
+
+let subst_eqs subst eqs =
+  List.map (fun (t1, t2) -> (subst_ty subst t1, subst_ty subst t2)) eqs 
+
+(* 全ての制約の要素（型のペア）を同じ型にするような型代入を返し、存在しなければエラーを返す *)
+let rec unify cstr =
+  (match cstr with
+    [] -> []
+  | (ty1, ty2)::tl -> 
+    if ty1 = ty2 then unify tl else
+      (match ty1, ty2 with
+        | TyFun (ty11, ty12), TyFun (ty21, ty22) -> unify ((ty11, ty21)::((ty12, ty22)::tl))
+        | TyList t1', TyList t2' -> unify ((t1', t2')::tl)
+        | TyVar id, ty | ty, TyVar id -> 
+            (* idがtyの自由型変数ならばエラー（occur check） *)
+            (* if (MySet.member id (freevar_ty ty)) then err ("unification error") else *)
+            if (occurs (TyVar id) ty) then err ("unification error") else
+            (* ty1, ty2に自由型変数idが存在するならばidにtyを代入する *)
+            let sub = subst_ty [(id, ty)] in
+            let s = unify (List.map (fun (t1, t2) -> (sub t1, sub t2)) cstr) in
+            (id, subst_ty s ty)::(unify (subst_eqs [(id, ty)] cstr))
+        | _, _ -> err ("unification error " ^ (pp_eqs cstr))))
+
+let ty_prim op ty1 ty2 = match op with
+    Plus -> ([(ty1, TyInt); (ty2, TyInt)], TyInt)
+  | Mult -> ([(ty1, TyInt); (ty2, TyInt)], TyInt)
+  | Minus -> ([(ty1, TyInt); (ty2, TyInt)], TyInt)
+  | Lt -> ([(ty1, TyInt); (ty2, TyInt)], TyBool)
+
+module IntSet = Set.Make (struct type t = int let compare = compare end)
+
+let rec free_tyvar = function
+  | TyInt | TyBool -> IntSet.empty
+  | TyVar n -> IntSet.singleton n
+  | TyList t -> free_tyvar t
+  | TyFun (t1, t2) -> IntSet.union (free_tyvar t1) (free_tyvar t2)
+
+let mono_ty t = (IntSet.empty, t)
+
+let poly_ty t env =
+  let vs = List.fold_left (fun fvs (_, (vs, t)) ->
+    IntSet.union fvs (IntSet.diff (free_tyvar t) vs)) IntSet.empty env in
+  (IntSet.diff (free_tyvar t) vs, t)
+
+let ty_exp env exp = 
+  let e = List.map (fun (id, v) -> (id, (IntSet.empty, v))) env in 
+  let rec ty_exp env exp = 
+    (match exp with
+    | ILit _ -> ([], TyInt)
+    | BLit _ -> ([], TyBool)
+    | IfExp (c, t, e) -> 
+        let (s1, t1) = try ty_exp env c with Error s -> err ("Error " ^ s ^ " Current env is: " ^ (pp_tyenv env)) in 
+        let (s2, t2) = try ty_exp env t with Error s -> err ("Error " ^ s ^ " Current env is: " ^ (pp_tyenv env)) in 
+        let (s3, t3) = try ty_exp env e with Error s -> err ("Error " ^ s ^ " Current env is: " ^ (pp_tyenv env)) in 
+        let eqs = (t1, TyBool) :: (t2, t3) :: (eqs_of_subst (s1 @ s2 @ s3)) in 
+        let s4 = unify eqs in (s4, subst_ty s4 t2)
+    | BinOp (binOp, e1, e2) -> 
+        let (s1, t1) = try ty_exp env e1 with Error s -> err ("Error " ^ s ^ " Current env is: " ^ (pp_tyenv env)) in 
+        let (s2, t2) = try ty_exp env e2 with Error s -> err ("Error " ^ s ^ " Current env is: " ^ (pp_tyenv env)) in 
+        let (eqs3, ty) = ty_prim binOp t1 t2 in 
+        let eqs = (eqs_of_subst s1) @ (eqs_of_subst s2) @ eqs3 in
+        let s3 = unify eqs in (s3, subst_ty s3 ty)
+    | Var x -> let (ns, t) = List.assoc x env in
+      let s = IntSet.fold (fun n s -> (n, TyVar (fresh_tyvar ())) :: s) ns [] in 
+      ([], subst_ty s t)
+    | LetExp (id, e1, e2) -> 
+        let (s1, t1) = ty_exp env e1 in
+        let sub = subst_ty s1 in
+        let env2 = List.map (fun (id, (vs, t)) -> (id, (vs, sub t))) env in
+        let tysc = poly_ty t1 env2 in
+        let (s2, t2) = ty_exp ((id, tysc) :: env) e2 in
+        let s3 = unify (eqs_of_subst (s1 @ s2)) in
+        (s3, subst_ty s3 t2)
+    | FunExp (id, exp) -> 
+        let domty = TyVar (fresh_tyvar ()) in 
+        let (s, ranty) = ty_exp ((id, mono_ty domty) :: env) exp in 
+        (s, TyFun (subst_ty s domty, ranty))
+    | AppExp (e1, e2) -> 
+        let (s1, t1) = try ty_exp env e1 with Error s -> err ("Error " ^ s ^ " Current env is: " ^ (pp_tyenv env)) in 
+        let (s2, t2) = try ty_exp env e2 with Error s -> err ("Error " ^ s ^ " Current env is: " ^ (pp_tyenv env)) in 
+        (match t1, t2 with
+        | TyFun (ty1, ty2), _ -> 
+            let eqs = (ty1, t2) :: (t1, TyFun (ty1, ty2)) :: [] in 
+            let s3 = unify eqs in 
+            (s3, subst_ty s3 ty2)
+        | TyVar _, _ -> 
+            let domty = TyVar (fresh_tyvar ()) in 
+            let eqs = (t1, TyFun (t2, domty)) :: ((eqs_of_subst s1) @ (eqs_of_subst s2)) in 
+            let s3 = unify eqs in 
+            (s3, subst_ty s3 domty)
+        | _ -> err "Type of function does not match.")
+    | LetRecExp (id1, id2, e1, e2) -> 
+        let (v1, v2) = (fresh_tyvar (), fresh_tyvar ()) in
+        let (s1, t1) = ty_exp ((id1, mono_ty (TyVar v1)) :: (id2, mono_ty (TyVar v2)) :: env) e1 in
+        let s2 = unify ((TyVar (v1), TyFun (TyVar v2, t1)) :: eqs_of_subst s1) in
+        let sub = subst_ty s2 in
+        let env2 = List.map (fun (id, (vs, t)) -> (id, (vs, sub t))) env in
+        let tysc = poly_ty (sub (TyVar v1)) env2 in
+        let (s3, t3) = ty_exp ((id1, tysc) :: env) e2 in
+        let s4 = unify (eqs_of_subst (s2 @ s3)) in
+        (s4, subst_ty s4 t3)
+    | NilExp -> 
+        let elemty = TyVar (fresh_tyvar ()) in 
+        ([], TyList elemty)
+    | ConsExp (e1, e2) -> 
+        let (s1, t1) = try ty_exp env e1 with Error s -> err ("Error " ^ s ^ " Current env is: " ^ (pp_tyenv env)) in 
+        let (s2, t2) = try ty_exp env e2 with Error s -> err ("Error " ^ s ^ " Current env is: " ^ (pp_tyenv env)) in 
+        let eqs = (t2, TyList t1) :: eqs_of_subst (s1 @ s2) in 
+        let s = unify eqs in (s, subst_ty s t2)
+    | MatchExp (e1, e2, x, y, e3) -> 
+        let (s1, t1) = ty_exp env e1 in
+        let (s2, t2) = ty_exp env e2 in
+        let v = fresh_tyvar () in
+        let (s3, t3) = ty_exp ((x, mono_ty (TyVar v)) :: (y, mono_ty (TyList (TyVar (v)))) :: env) e3 in
+        let s4 = unify ((t1, TyList (TyVar (v))) :: (t2, t3) :: eqs_of_subst (s1 @ s2 @ s3)) in
+        (s4, subst_ty s4 t2))
+  in ty_exp e exp
 
 let rec create_dtree judgement =
   (match judgement with
-  | EvalExp (env, e, v) -> 
-      (match e, v with
-      | ILit i1, IntV i2 -> 
-          if i1 = i2 then Tree ((judgement, Eint), Empty::[]) else err "No possible derivation."
-      | BLit b1, BoolV b2 -> 
-          if b1 = b2 then Tree ((judgement, Ebool), Empty::[]) else err "No possible derivation."
-      | Var x, _ -> 
-          let v1 = try lookup x env with Not_found -> err ("Variable not bound." ^ x) in 
-            if v1 = v
-              then Tree ((judgement, Evar), Empty::[]) 
-              else err "Value of e does not match v."
-      | IfExp (c, t, e), _ -> 
-          let test = try eval_exp env c with _ -> err "Evaluation failed." in 
-          (match test with
-          | BoolV b -> 
-            if b 
-              then 
-                let first = try eval_exp env t with _ -> err "Evaluation failed." in 
-                if first = v
-                  then 
-                    let t1 = create_dtree (EvalExp (env, c, BoolV true)) in 
-                    let t2 = create_dtree (EvalExp (env, t, v)) in
-                    Tree ((judgement, EifT), t1::t2::[]) 
-                  else err "No possible derivation."
-              else
-                let second = try eval_exp env e with Error s -> err ("Error " ^ s ^ " Current env is: " ^ (pp_env env)) in
-                if second = v
-                  then 
-                    let t1 = create_dtree (EvalExp (env, c, BoolV false)) in 
-                    let t2 = create_dtree (EvalExp (env, e, v)) in
-                    Tree ((judgement, EifF), t1::t2::[]) 
-                  else err "No possible derivation."
-          | _ -> err "No possible derivation.")
+  | TyExp (env, e, t) -> 
+      (match e, t with
+      | ILit _, TyInt -> 
+          Tree ((judgement, Tint), Empty::[])
+      | BLit _, TyBool -> 
+          Tree ((judgement, Tbool), Empty::[])
+      | IfExp (c, l, r), _ -> 
+          let (_, ty) = try ty_exp env e with Error s -> err ("Error " ^ s ^ " Current env is: " ^ (pp_tyenv1 env)) in 
+          if ty = t
+            then
+              let t1 = create_dtree (TyExp (env, c, TyBool)) in 
+              let t2 = create_dtree (TyExp (env, l, ty)) in
+              let t3 = create_dtree (TyExp (env, r, ty)) in 
+              Tree ((judgement, Tif), t1::t2::t3::[])
+            else
+              err "No possible derivation."
       | BinOp (binOp, l, r), _ -> 
-          let left  = try eval_exp env l with _ -> err "Evaluation failed." in 
-          let right = try eval_exp env r with _ -> err "Evaluation failed." in 
-          (match left, right with
-          | IntV i1, IntV i2 -> 
-            let t1 = create_dtree (EvalExp (env, l, IntV i1)) in 
-            let t2 = create_dtree (EvalExp (env, r, IntV i2)) in 
-            (match binOp, v with
-              | Plus, IntV i3 -> 
-                  if i1 + i2 = i3
-                    then
-                      let t3 = create_dtree (PlusExp (i1, i2, i3)) in 
-                      Tree ((judgement, Eplus), t1::t2::t3::[])
-                    else err "No possible derivation."
-              | Mult, IntV i3 ->
-                  if i1 * i2 = i3
-                    then
-                      let t3 = create_dtree (MultExp (i1, i2, i3)) in 
-                      Tree ((judgement, Etimes), t1::t2::t3::[])
-                    else err "No possible derivation."
-              | Minus, IntV i3 -> 
-                  if i1 - i2 = i3
-                    then
-                      let t3 = create_dtree (MinusExp (i1, i2, i3)) in 
-                      Tree ((judgement, Eminus), t1::t2::t3::[])
-                    else err "No possible derivation."
-              | Lt, BoolV b3 ->
-                  if (i1 < i2 && b3) || (i1 >= i2 && not b3)
-                    then
-                      let t3 = create_dtree (LtExp (i1, i2, b3)) in 
-                      Tree ((judgement, Elt), t1::t2::t3::[])
-                    else err "No possible derivation."
-              | _, _ -> err "No possible derivation.")
-          | _, _ -> err "No possible derivation.")
+          let (_, ty) = try ty_exp env e with Error s -> err ("Error " ^ s ^ " Current env is: " ^ (pp_tyenv1 env)) in 
+          (match binOp with
+            | Plus -> 
+                if ty = TyInt
+                  then
+                    let t1 = create_dtree (TyExp (env, l, TyInt)) in 
+                    let t2 = create_dtree (TyExp (env, r, TyInt)) in 
+                    Tree ((judgement, Tplus), t1::t2::[])
+                  else err "Type of e does not match t."
+            | Mult -> 
+                if ty = TyInt
+                  then
+                    let t1 = create_dtree (TyExp (env, l, TyInt)) in 
+                    let t2 = create_dtree (TyExp (env, r, TyInt)) in 
+                    Tree ((judgement, Ttimes), t1::t2::[])
+                  else err "Type of e does not match t."
+            | Minus -> 
+              if ty = TyInt
+                then
+                  let t1 = create_dtree (TyExp (env, l, TyInt)) in 
+                  let t2 = create_dtree (TyExp (env, r, TyInt)) in 
+                  Tree ((judgement, Tminus), t1::t2::[])
+                else err "Type of e does not match t."
+            | Lt ->
+                if ty = TyBool
+                  then
+                    let t1 = create_dtree (TyExp (env, l, TyInt)) in 
+                    let t2 = create_dtree (TyExp (env, r, TyInt)) in 
+                    Tree ((judgement, Tlt), t1::t2::[])
+                  else err "Type of e does not match t.")
+      | Var _, _ -> 
+          let (_, ty) = try ty_exp env e with Error s -> err ("Error " ^ s ^ " Current env is: " ^ (pp_tyenv1 env)) in 
+          if ty = t
+            then Tree ((judgement, Tvar), Empty::[])
+            else err "Type of e does not match t."
       | LetExp (x, e1, e2), _ -> 
-          let v1 = try eval_exp env e1 with _ -> err "Evaluation failed." in 
-          let v2 = try eval_exp (extend x v1 env) e2 with _ -> err "Evaluation failed when env is extended by let-expression." in 
-          if v2 = v
+          let (_, ty2) = try ty_exp env e with Error s -> err ("Error " ^ s ^ " Current env is: " ^ (pp_tyenv1 env)) in 
+          if ty2 = t
             then
-              let t1 = create_dtree (EvalExp (env, e1, v1)) in 
-              let t2 = create_dtree (EvalExp ((extend x v1 env), e2, v)) in 
-              Tree ((judgement, Elet), t1::t2::[])
-            else
-              err (x ^ " is successfully bound by let-expression, but is evaluated to different value.")
-      | LetRecExp (x, y, e1, e2), _ ->
-          let v1 = try eval_exp (extend x (RecProcV (x, y, e1, env)) env) e2 with Error s -> err s in 
-          if v1 = v
-            then 
-              let t1 = create_dtree (EvalExp ((extend x (RecProcV (x, y, e1, env)) env), e2, v)) in 
-              Tree ((judgement, Eletrec), t1::[])
-            else
-              err (x ^ " is successfully bound by let-rec-expression, but is evaluated to different value.")
-      | FunExp (x1, e1), ProcV (x2, e2, env') ->
-          if x1 = x2 && e1 = e2 && env = env'
-            then Tree ((judgement, Efun), Empty::[])
-            else err "aaa"
+              let (_, ty1) = try ty_exp env e1 with Error s -> err ("Error " ^ s ^ " Current env is: " ^ (pp_tyenv1 env)) in 
+              let t1 = create_dtree (TyExp (env, e1, ty1)) in 
+              let t2 = create_dtree (TyExp ((extend x ty1 env), e2, ty2)) in 
+              Tree ((judgement, Tlet), t1::t2::[])
+            else err "Type of e does not match t."
+      | FunExp (x, exp), _ ->
+          let (_, ty) = try ty_exp env e with Error s -> err ("Error " ^ s ^ " Current env is: " ^ (pp_tyenv1 env)) in
+          if ty = t
+            then
+              (match ty with
+              | TyFun (ty1, ty2) -> 
+                  let t1 = create_dtree (TyExp ((extend x ty1 env), exp, ty2)) in 
+                  Tree ((judgement, Tfun), t1::[])
+              | _ -> err ("Type of e should be TyFun, but got " ^ (pp_ty ty)))
+            else err ("Type of e does not match t. Expected type " ^ (pp_ty t) ^ ", but got " ^ (pp_ty ty))
       | AppExp (e1, e2), _ -> 
-          let v1 = try eval_exp env e1 with _ -> err "Evaluation failed when evaluating funval of AppExp." in 
-          let v2 = try eval_exp env e2 with _ -> err "Evaluation failed when evaluating arg of AppExp." in 
-          (match v1 with
-          | ProcV (x, e0, env') ->
-            let v0 = try eval_exp (extend x v2 env') e0 with _ -> err "Evaluation failed when evaluating the final value of AppExp." in 
-            if v0 = v
-              then
-                let t1 = create_dtree (EvalExp (env, e1, ProcV (x, e0, env'))) in 
-                let t2 = create_dtree (EvalExp (env, e2, v2)) in 
-                let t3 = create_dtree (EvalExp ((extend x v2 env'), e0, v)) in 
-                Tree ((judgement, Eapp), t1::t2::t3::[])
-              else err "create_dtree error in the assessment of E-App."
-          | RecProcV (x, y, e0, env') -> 
-            let v0 = try eval_exp (extend y v2 (extend x v1 env')) e0 with _ -> err ("Evaluation failed in the final value of AppRecExp. Current env is: " ^ (pp_env (extend y v2 env))) in
-            if v0 = v
-              then
-                let t1 = create_dtree (EvalExp (env, e1, v1)) in 
-                let t2 = create_dtree (EvalExp (env, e2, v2)) in 
-                let t3 = create_dtree (EvalExp ((extend y v2 (extend x v1 env')), e0, v)) in 
-                Tree ((judgement, Eapprec), t1::t2::t3::[])
-              else err "create_dtree error in the assessment of E-AppRec."
-          | _ -> err "Evaluation on funval of AppExp should go to ProcV, but different value is obtained.")
-      | NilExp, NilV -> Tree ((judgement, Enil), Empty::[])
-      | ConsExp (e1, e2), _ -> 
-          let v1 = eval_exp env e1 in 
-          let v2 = eval_exp env e2 in 
-          if v = ConsV (v1, v2)
+          let (_, ty2) = try ty_exp env e with Error s -> err ("Error " ^ s ^ " Current env is: " ^ (pp_tyenv1 env)) in 
+          if ty2 = t
             then
-              let t1 = create_dtree (EvalExp (env, e1, v1)) in 
-              let t2 = create_dtree (EvalExp (env, e2, v2)) in 
-              Tree ((judgement, Econs), t1::t2::[])
-              else err "create_dtree error in the assessment of E-ConsExp."
+              let (_, ty1) = try ty_exp env e2 with Error s -> err ("Error " ^ s ^ " Current env is: " ^ (pp_tyenv1 env)) in 
+              let t1 = create_dtree (TyExp (env, e1, TyFun (ty1, ty2))) in 
+              let t2 = create_dtree (TyExp (env, e2, ty1)) in 
+              Tree ((judgement, Tapp), t1::t2::[])
+            else
+              err "Type of e does not match t."
+      (* | LetRecExp (x, y, e1, e2), _ ->
+          let (_, ty) = try ty_exp env e with Error s -> err ("Error " ^ s ^ " Current env is: " ^ (pp_tyenv1 env)) in 
+          if ty = t
+            then
+              let t1 = create_dtree (TyExp ((extend y ty1 (extend x TyFun (ty1, ty2) env)), e1, ty2)) in
+              let t2 = create_dtree (TyExp ((extend x TyFun (ty1, ty2) env), e2, ty)) in 
+              Tree ((judgement, Tletrec), t1::t2::[])
+            else
+              err "Type of e does not match t." *)
+      | NilExp, TyList _ -> Tree ((judgement, Tnil), Empty::[])
+      | ConsExp (e1, e2), _ -> 
+          let (_, tyl) = try ty_exp env e with Error s -> err ("Error " ^ s ^ " Current env is: " ^ (pp_tyenv1 env)) in
+          if tyl = t
+            then
+              (match tyl with
+              | TyList ty -> 
+                  let t1 = create_dtree (TyExp (env, e1, ty)) in 
+                  let t2 = create_dtree (TyExp (env, e2, tyl)) in 
+                  Tree ((judgement, Tcons), t1::t2::[])
+              | _ -> err ("Type of e should be TyList, but got " ^ (pp_ty tyl)))
+            else
+              err ("Type of e does not match t." ^ (pp_ty tyl) ^ (pp_ty t))
       | MatchExp (e1, e2, x, y, e3), _ -> 
-          let p = eval_exp env e1 in 
-          (match p with
-          | NilV -> 
-              let result = eval_exp env e2 in 
-              if result = v
-                then
-                  let t1 = create_dtree (EvalExp (env, e1, p)) in 
-                  let t2 = create_dtree (EvalExp (env, e2, v)) in 
-                  Tree ((judgement, Ematchnil), t1::t2::[])
-                else 
-                  err "create_dtree error during MatchExp."
-          | ConsV (v1, v2) -> 
-              let newenv = extend y v2 (extend x v1 env) in 
-              let result = eval_exp newenv e3 in
-              if result = v 
-                then
-                  let t1 = create_dtree (EvalExp (env, e1, p)) in 
-                  let t2 = create_dtree (EvalExp (newenv, e3, v)) in 
-                  Tree ((judgement, Ematchcons), t1::t2::[])
-                else 
-                  err "create_dtree error during MatchExp."
-          | _ -> err "Pattern should go to NilV or ConsV.")
-      | _, _ -> err "create_dtree error during EvalExp.")
-  | PlusExp (n1, n2, n3) -> 
-      if n1 + n2 = n3 
-        then Tree ((judgement, Bplus), Empty::[])
-        else err "No possible derivation."
-  | MultExp (n1, n2, n3) -> 
-      if n1 * n2 = n3 
-        then Tree ((judgement, Btimes), Empty::[])
-        else err "No possible derivation."
-  | MinusExp (n1, n2, n3) -> 
-      if n1 - n2 = n3
-        then Tree ((judgement, Bminus), Empty::[])
-        else err "No possible derivation."
-  | LtExp (n1, n2, b) -> 
-      if (n1 < n2 && b) || (n1 >= n2 && not b)
-        then Tree ((judgement, Blt), Empty::[])
-        else err "No possible derivation.")
+          let (_, ty) = try ty_exp env e with Error s -> err ("Error " ^ s ^ " Current env is: " ^ (pp_tyenv1 env)) in
+          if ty = t
+            then
+              let (_, tyl') = try ty_exp env e1 with Error s -> err ("Error " ^ s ^ " Current env is: " ^ (pp_tyenv1 env)) in
+              (match tyl' with
+              | TyList ty' -> 
+                let t1 = create_dtree (TyExp (env, e1, tyl')) in
+                let t2 = create_dtree (TyExp (env, e2, ty)) in 
+                let t3 = create_dtree (TyExp ((extend y ty' (extend x ty' env)), e3, ty)) in 
+                Tree ((judgement, Tmatch), t1::t2::t3::[])
+              | _ -> err ("Type of e should be TyList, but got " ^ (pp_ty tyl')))
+            else
+              err "Type of e does not match t."
+      | _, _ -> err "create_dtree error during EvalExp."))

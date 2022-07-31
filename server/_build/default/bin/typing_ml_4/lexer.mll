@@ -1,7 +1,6 @@
 {
 let reservedWords = [
   (* Keywords *)
-  ("evalto", Parser.EVALTO);
   ("if", Parser.IF);
   ("then", Parser.THEN);
   ("else", Parser.ELSE);
@@ -13,6 +12,9 @@ let reservedWords = [
   ("rec", Parser.REC);
   ("match", Parser.MATCH);
   ("with", Parser.WITH);
+  ("int", Parser.INT);
+  ("bool", Parser.BOOL);
+  ("list", Parser.LIST);
 ]
 }
 
@@ -37,8 +39,6 @@ rule main = parse
 | "," { Parser.COMMA }
 | "(" { Parser.LPAREN }
 | ")" { Parser.RPAREN }
-| "[" { Parser.LBRACKET }
-| "]" { Parser.RBRACKET }
 | "::" { Parser.CONSTRUCT }
 | ":" { Parser.COLON }
 | "[]" { Parser.LBRACKET_RBRACKET }

@@ -16,42 +16,31 @@ type exp =
   | ConsExp of exp * exp
   | MatchExp of exp * exp * id * id * exp
 
-type exval = 
-  | IntV of int
-  | BoolV of bool
-  | ProcV of id * exp * (id * dnval) list
-  | RecProcV of id * id * exp * (id * dnval) list
-  | NilV
-  | ConsV of dnval * dnval
-and dnval = exval
+type tyvar = int  (* 型変数の識別子を整数で表現 *)
+
+type ty = 
+  | TyInt
+  | TyBool
+  | TyVar of tyvar
+  | TyFun of ty * ty 
+  | TyList of ty
 
 type judgement = 
-  | EvalExp of (id * exval) list * exp * exval
-  | PlusExp of int * int * int 
-  | MultExp of int * int * int
-  | MinusExp of int * int * int
-  | LtExp of int * int * bool
+  | TyExp of (id * ty) list * exp * ty
 
 type rule = 
-| Eint 
-| Ebool 
-| Evar
-| EifT 
-| EifF 
-| Eplus 
-| Eminus 
-| Etimes 
-| Elt 
-| Elet
-| Efun
-| Eapp
-| Eletrec
-| Eapprec
-| Enil
-| Econs
-| Ematchnil
-| Ematchcons
-| Bplus 
-| Bminus 
-| Btimes 
-| Blt
+| Tint 
+| Tbool 
+| Tif
+| Tplus 
+| Tminus
+| Ttimes
+| Tlt 
+| Tvar 
+| Tlet
+| Tfun
+| Tapp
+| Tletrec
+| Tnil
+| Tcons
+| Tmatch
